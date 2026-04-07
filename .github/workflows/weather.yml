@@ -1,0 +1,34 @@
+name: 张家港每日7:30天气推送
+
+on:
+  schedule:
+    - cron: '30 23 * * *'  # UTC 23:30 = 北京时间 7:30
+  workflow_dispatch:
+
+jobs:
+  push_weather:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 获取张家港实时天气
+        id: weather
+        run: |
+          # 调用和风天气官方API
+          resp=$(curl -s "https://devapi.qweather.com/v7/weather/now?location=101190209&key=${{ secrets.WEATHER_KEY }}")
+          # 提取天气、温度、风向
+          echo "weather=$(echo $resp | jq -r '.now.text')" >> $GITHUB_OUTPUT
+          echo "temp=$(echo $resp | jq -r '.now.temp')" >> $GITHUB_OUTPUT
+          echo "wind=$(echo $resp | jq -r '.now.windDir')" >> $GITHUB_OUTPUT
+
+      - name: 推送到微信公众号（给所有关注者）
+        uses: wx-toc/push@master
+        with:
+          appid: ${{ secrets.WX_APPID }}
+          secret: ${{ secrets.WX_APPSECRET }}
+          template_id: "IneI8E0iNxQeJZgR2h201cY6gR5cU52V5c0V520"
+          data: |
+            {
+              "thing1": {"value": "张家港早报☀️"},
+              "phrase2": {"value": "${{ steps.weather.outputs.weather }}"},
+              "number3": {"value": "${{ steps.weather.outputs.temp }}℃"},
+              "thing4": {"value": "风向：${{ steps.weather.outputs.wind }}"}
+            }
